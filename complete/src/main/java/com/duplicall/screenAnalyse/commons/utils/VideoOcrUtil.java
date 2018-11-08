@@ -17,7 +17,6 @@ import org.apache.http.impl.client.HttpClients;
 import org.apache.http.message.BasicHeader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.web.bind.annotation.RequestMapping;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
@@ -27,7 +26,6 @@ import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.charset.Charset;
 import java.nio.charset.CharsetDecoder;
-import java.util.UUID;
 
 /**
  * 使用Token认证方式访问服务
@@ -38,7 +36,7 @@ public class VideoOcrUtil {
     //连接目标url超时限制参数
     public static int connectionTimeout = 5000;
     //连接池获取可用连接超时限制参数
-    public static int connectionRequestTimeout = 1000;
+    public static int connectionRequestTimeout = 5000;
     //获取服务器响应数据超时限制参数
     public static int socketTimeout = 5000;
 
@@ -103,7 +101,7 @@ public class VideoOcrUtil {
      * @throws UnsupportedOperationException
      * @throws IOException
      */
-    private static String getToken(String username, String password, String projectName)
+    public static String getToken(String username, String password, String projectName)
             throws URISyntaxException, UnsupportedOperationException, IOException {
         String requestBody = requestBody(username, password, username, projectName);
         String url = "https://iam.cn-north-1.myhuaweicloud.com/v3/auth/tokens";
@@ -200,11 +198,13 @@ public class VideoOcrUtil {
         }
     }
 
-    /*查看单个视频OCR作业进度*/
-    public static void getVideoOcrStatus(String token, String projectId, String taskId) {
+    /*查看单个视频OCR作业进度, 作业完成返回true*/
+    public static Boolean getVideoOcrStatus(String token, String projectId, String taskId) {
+        Boolean result = false;
         String url = "https://iva.cn-north-1.myhuaweicloud.com/v1/" + projectId + "/services/video-ocr/tasks/" + taskId;
         Header header = new BasicHeader("X-Auth-Token", token);
         Header header2 = new BasicHeader("Content-Type", "application/json");
+        ReadableByteChannel rchannel = null;
         try {
             CloseableHttpClient httpClient = HttpClients.createDefault();
             HttpGet httpGet = new HttpGet(url);
@@ -216,23 +216,30 @@ public class VideoOcrUtil {
             httpGet.addHeader(header);
             httpGet.addHeader(header2);
             CloseableHttpResponse response = httpClient.execute(httpGet);
-            logger.info(response.getEntity().toString());
-            ReadableByteChannel rchannel = Channels.newChannel(response.getEntity().getContent());
+//            logger.info(response.getEntity().toString());
+            rchannel = Channels.newChannel(response.getEntity().getContent());
             ByteBuffer buffer = ByteBuffer.allocate(4096);
             while (rchannel.read(buffer) != -1) {
                 buffer.flip();
                 Charset charset = Charset.forName("UTF-8");
                 CharsetDecoder decoder = charset.newDecoder();
                 CharBuffer charBuffer = decoder.decode(buffer.asReadOnlyBuffer());
-                System.out.println(charBuffer.toString());
                 buffer.clear();
+                if (charBuffer.toString().indexOf("\"state\":\"SUCCEEDED\"") > -1) {
+                    result = true;
+                    break;
+                }
             }
-            rchannel.close();
-
-
         } catch (Exception e) {
             logger.error(e.getMessage(), e);
+        } finally {
+            try {
+                rchannel.close();
+            } catch (IOException e) {
+                logger.error(e.getMessage(), e);
+            }
         }
+        return result;
     }
 
 
@@ -254,7 +261,8 @@ public class VideoOcrUtil {
         } catch (Exception e) {
             e.printStackTrace();
         }*/
-        getVideoOcrStatus(token, "f8c0106ad79c489faff83e4579a28aa9", "taskjd5k6hwq");
+        Boolean res = getVideoOcrStatus(token, "f8c0106ad79c489faff83e4579a28aa9", "taskjd5k6hwq");
+        System.out.println(res);
     }
 
 }

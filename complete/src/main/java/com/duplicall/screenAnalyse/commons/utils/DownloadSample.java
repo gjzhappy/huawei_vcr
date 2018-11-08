@@ -3,7 +3,7 @@
 //import com.obs.services.ObsClient;
 //import com.obs.services.ObsConfiguration;
 //import com.obs.services.exception.ObsException;
-//import com.obs.services.model.ObsObject;
+//import com.obs.services.pojo.ObsObject;
 //import org.slf4j.Logger;
 //import org.slf4j.LoggerFactory;
 //

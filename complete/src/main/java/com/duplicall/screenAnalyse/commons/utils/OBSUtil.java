@@ -17,29 +17,36 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
+import static com.duplicall.screenAnalyse.commons.constants.ApplicationConstants.FileLocation.localBase;
+import static com.duplicall.screenAnalyse.commons.constants.ApplicationConstants.HuaweiBulaBula.endPoint;
+import static com.duplicall.screenAnalyse.commons.constants.ApplicationConstants.HuaweiBulaBula.ak;
+import static com.duplicall.screenAnalyse.commons.constants.ApplicationConstants.HuaweiBulaBula.sk;
+import static com.duplicall.screenAnalyse.commons.constants.ApplicationConstants.HuaweiBulaBula.bucketName;
+
 public class OBSUtil {
-    private static final String endPoint = "https://obs.cn-north-1.myhwclouds.com";
+//    private static final String endPoint = "https://obs.cn-north-1.myhwclouds.com";
 
-    private static final String ak = "OFNDQL7EHQZTDINVG6Y6";
+//    private static final String ak = "OFNDQL7EHQZTDINVG6Y6";
 
-    private static final String sk = "ioE5urzKgFoFM79jRJX0EcwxSo7kxTM8cExHt6ja";
+//    private static final String sk = "ioE5urzKgFoFM79jRJX0EcwxSo7kxTM8cExHt6ja";
 
     private static ObsClient obsClient;
 
-    private static String bucketName = "obs-minist";
+//    private static String bucketName = "obs-minist";
 
     private static String objectKey = "";
 
     private static String localFilePath;
 
-    private static ExecutorService executorService = Executors.newFixedThreadPool(5);
+//    private static ExecutorService executorService = Executors.newFixedThreadPool(5);
 
-    private static List<PartEtag> partETags = Collections.synchronizedList(new ArrayList<PartEtag>());
+//    private static List<PartEtag> partETags = Collections.synchronizedList(new ArrayList<PartEtag>());
 
     private static Logger logger = LoggerFactory.getLogger(OBSUtil.class);
 
-    public static String upload(File sampleFile)
-            throws IOException {
+    public static String upload(File sampleFile) {
+        ExecutorService executorService = Executors.newFixedThreadPool(5);
+        List<PartEtag> partETags = Collections.synchronizedList(new ArrayList<PartEtag>());
         objectKey = sampleFile.getName();
         ObsConfiguration config = new ObsConfiguration();
         config.setSocketTimeout(30000);
@@ -82,7 +89,7 @@ public class OBSUtil {
             for (int i = 0; i < partCount; i++) {
                 long offset = i * partSize;
                 long currPartSize = (i + 1 == partCount) ? fileLength - offset : partSize;
-                executorService.execute(new OBSUtil.PartUploader(sampleFile, offset, currPartSize, i + 1, uploadId));
+                executorService.execute(new OBSUtil.PartUploader(sampleFile, offset, currPartSize, i + 1, uploadId, partETags));
             }
 
             /*
@@ -114,7 +121,7 @@ public class OBSUtil {
             /*
              * Complete to upload multiparts
              */
-            completeMultipartUpload(uploadId);
+            completeMultipartUpload(uploadId, partETags);
 
         } catch (ObsException e) {
             logger.error("Response Code: " + e.getResponseCode());
@@ -148,12 +155,15 @@ public class OBSUtil {
 
         private String uploadId;
 
-        public PartUploader(File sampleFile, long offset, long partSize, int partNumber, String uploadId) {
+        private List<PartEtag> partETags;
+
+        public PartUploader(File sampleFile, long offset, long partSize, int partNumber, String uploadId, List<PartEtag> partETags) {
             this.sampleFile = sampleFile;
             this.offset = offset;
             this.partSize = partSize;
             this.partNumber = partNumber;
             this.uploadId = uploadId;
+            this.partETags = partETags;
         }
 
         @Override
@@ -200,7 +210,7 @@ public class OBSUtil {
         return file;
     }
 
-    private static void completeMultipartUpload(String uploadId)
+    private static void completeMultipartUpload(String uploadId, List<PartEtag> partETags)
             throws ObsException {
         // Make part numbers in ascending order
         Collections.sort(partETags, new Comparator<PartEtag>() {
@@ -218,7 +228,7 @@ public class OBSUtil {
     }
 
     public static void delete(String fileName) {
-        objectKey = fileName;
+        String objectKey = fileName;
         ObsConfiguration config = new ObsConfiguration();
         config.setSocketTimeout(30000);
         config.setConnectionTimeout(10000);
@@ -248,10 +258,10 @@ public class OBSUtil {
         }
     }
 
-    public static void download(String fileName)
+    public static String download(String taskId, String fileName)
             throws IOException {
-        objectKey = fileName;
-        localFilePath = "c:/temp/" + objectKey;
+        String objectKey = fileName;
+        localFilePath = localBase + objectKey;
         ObsConfiguration config = new ObsConfiguration();
         config.setSocketTimeout(30000);
         config.setConnectionTimeout(10000);
@@ -276,12 +286,13 @@ public class OBSUtil {
             /*
              * Download the object to a file
              */
-            downloadToLocalFile();
+            String act_objectKey = "output/" + taskId + "/" + bucketName + "/" + objectKey;
+            downloadToLocalFile(act_objectKey);
 
-            /*为方便,直接删除*/
-            logger.info("Deleting object  " + objectKey + "\n");
-            obsClient.deleteObject(bucketName, objectKey, null);
-
+            /*为方便,直接删除obs中的文件*/
+            logger.info("Deleting object  " + act_objectKey + "\n");
+            obsClient.deleteObject(bucketName, act_objectKey, null);
+            return localFilePath;
         } catch (ObsException e) {
             logger.error("Response Code: " + e.getResponseCode());
             logger.error("Error Message: " + e.getErrorMessage());
@@ -299,16 +310,16 @@ public class OBSUtil {
                 }
             }
         }
+        return null;
     }
 
-    private static void downloadToLocalFile()
+    private static void downloadToLocalFile(String objectKey)
             throws ObsException, IOException {
         ObsObject obsObject = obsClient.getObject(bucketName, objectKey, null);
         ReadableByteChannel rchannel = Channels.newChannel(obsObject.getObjectContent());
 
         ByteBuffer buffer = ByteBuffer.allocate(4096);
         WritableByteChannel wchannel = Channels.newChannel(new FileOutputStream(new File(localFilePath)));
-        //todo 解析作业状态
         while (rchannel.read(buffer) != -1) {
             buffer.flip();
             wchannel.write(buffer);
@@ -320,12 +331,13 @@ public class OBSUtil {
 
 
     public static void main(String[] args) {
-        File file = new File("D:\\Temp\\11f137137ea06bc3434fc53bdd3f2111.mp4");
+//        File file = new File("C:\\temp\\5bd896a0-ddf7-4461-bf53-93e4feb92e53.mp4");
+//        File file = new File("C:\\temp\\5fdd73c8-6f67-448f-8eb9-86f6d070db57.mp4");
         try {
 //            file = createSampleFile();
-            String fileName = upload(file);
-            System.out.println(fileName);
-//            download("obs-java-sdk-2432636962545079335.txt");
+//            String fileName = upload(file);
+//            System.out.println(fileName);
+            download("taskm522j5kd", "f602125e-c9b6-4a6a-8c7d-1921eb682cd3.mp4.json");
 //            delete("obs-java-sdk-2783098217226618676.txt");
         } catch (Exception e) {
             e.printStackTrace();

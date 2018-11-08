@@ -17,15 +17,15 @@
 //import com.obs.services.ObsClient;
 //import com.obs.services.ObsConfiguration;
 //import com.obs.services.exception.ObsException;
-//import com.obs.services.model.CompleteMultipartUploadRequest;
-//import com.obs.services.model.InitiateMultipartUploadRequest;
-//import com.obs.services.model.InitiateMultipartUploadResult;
-//import com.obs.services.model.ListPartsRequest;
-//import com.obs.services.model.ListPartsResult;
-//import com.obs.services.model.Multipart;
-//import com.obs.services.model.PartEtag;
-//import com.obs.services.model.UploadPartRequest;
-//import com.obs.services.model.UploadPartResult;
+//import com.obs.services.pojo.CompleteMultipartUploadRequest;
+//import com.obs.services.pojo.InitiateMultipartUploadRequest;
+//import com.obs.services.pojo.InitiateMultipartUploadResult;
+//import com.obs.services.pojo.ListPartsRequest;
+//import com.obs.services.pojo.ListPartsResult;
+//import com.obs.services.pojo.Multipart;
+//import com.obs.services.pojo.PartEtag;
+//import com.obs.services.pojo.UploadPartRequest;
+//import com.obs.services.pojo.UploadPartResult;
 //import org.slf4j.Logger;
 //import org.slf4j.LoggerFactory;
 //
