@@ -10,6 +10,7 @@ import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpDelete;
 import org.apache.http.client.methods.HttpGet;
+import org.apache.http.client.methods.HttpPost;
 import org.apache.http.entity.ContentType;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
@@ -104,13 +105,26 @@ public class VideoOcrUtil {
     public static String getToken(String username, String password, String projectName)
             throws URISyntaxException, UnsupportedOperationException, IOException {
         String requestBody = requestBody(username, password, username, projectName);
+        logger.info("get token request body:{}", requestBody);
         String url = "https://iam.cn-north-1.myhuaweicloud.com/v3/auth/tokens";
 
         Header[] headers = new Header[]{new BasicHeader("Content-Type", ContentType.APPLICATION_JSON.toString())};
-        StringEntity stringEntity = new StringEntity(requestBody,
-                "utf-8");
+        StringEntity stringEntity = new StringEntity(requestBody, "utf-8");
 
-        HttpResponse response = HttpClientUtils.post(url, headers, stringEntity, connectionTimeout, connectionRequestTimeout, socketTimeout);
+//        HttpResponse response = HttpClientUtils.post(url, headers, stringEntity, connectionTimeout, connectionRequestTimeout, socketTimeout);
+        CloseableHttpClient httpClient = HttpClients.createDefault();
+        HttpPost httpPost = new HttpPost(url);
+        RequestConfig requestConfig = RequestConfig.custom()
+                .setSocketTimeout(connectionRequestTimeout)
+                .setConnectTimeout(connectionTimeout)
+                .build();
+        httpPost.setConfig(requestConfig);
+        Header header = new BasicHeader("Content-Type", "application/json");
+        httpPost.addHeader(header);
+        httpPost.setEntity(stringEntity);
+        CloseableHttpResponse response = httpClient.execute(httpPost);
+
+        logger.info("response:{}", response.getEntity());
         Header[] xst = response.getHeaders("X-Subject-Token");
         return xst[0].getValue();
 
@@ -155,16 +169,28 @@ public class VideoOcrUtil {
     /*创建视频OCR作业*/
     public static String requestVideoOcr(String token, String projectId, String taskName, String bucketName, String... filePath) {
         String url = "https://iva.cn-north-1.myhuaweicloud.com/v1/" + projectId + "/services/video-ocr/tasks";
-        Header[] headers = new Header[]{new BasicHeader("X-Auth-Token", token), new BasicHeader("Content-Type", "application/json")};
+//        Header[] headers = new Header[]{new BasicHeader("X-Auth-Token", token), new BasicHeader("Content-Type", "application/json")};
         String requestBody = postVideoOcrBody(taskName, "video-ocr-demo", bucketName, filePath);
         StringEntity stringEntity = new StringEntity(requestBody, "utf-8");
         stringEntity.setContentEncoding("UTF-8");
         stringEntity.setContentType("application/json");
         try {
-            HttpResponse response = HttpClientUtils.post(url, headers, stringEntity, connectionTimeout, connectionRequestTimeout, socketTimeout);
+//            HttpResponse response = HttpClientUtils.post(url, headers, stringEntity, connectionTimeout, connectionRequestTimeout, socketTimeout);
+            CloseableHttpClient httpClient = HttpClients.createDefault();
+            HttpPost httpPost = new HttpPost(url);
+            RequestConfig requestConfig = RequestConfig.custom()
+                    .setSocketTimeout(connectionRequestTimeout)
+                    .setConnectTimeout(connectionTimeout)
+                    .build();
+            httpPost.setConfig(requestConfig);
+            Header header = new BasicHeader("Content-Type", "application/json");
+            Header header2 = new BasicHeader("X-Auth-Token", token);
+            httpPost.addHeader(header);
+            httpPost.addHeader(header2);
+            httpPost.setEntity(stringEntity);
+            CloseableHttpResponse response = httpClient.execute(httpPost);
             Charset charset = Charset.forName("utf-8");
             String content = IOUtils.toString(response.getEntity().getContent(), charset);
-            logger.info(content);
             JSONArray jsonArray = JSONArray.parseArray(content);
             JSONObject jsonObject = jsonArray.getJSONObject(0);
             if (jsonObject.containsKey("id")) {

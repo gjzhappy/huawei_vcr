@@ -42,7 +42,8 @@ public class ScreenAnalyseTask implements Runnable {
     @Override
     public void run() {
         logger.info("________ScreenAnalyseTask {} start_________", Thread.currentThread().getName());
-        logger.info("<<<<从ftp下载mp4及trace文件到本地>>>>");
+        logger.info("request body: {}", screenVideo.toString());
+        logger.info("<<<<download mp4 & trace file from ftp>>>>");
         /*一.从ftp下载mp4及trace文件到本地*/
         FTPServiceImpl ftpService = new FTPServiceImpl();
         String tempFileName = UUID.randomUUID().toString().replaceAll("-", "");
@@ -57,24 +58,25 @@ public class ScreenAnalyseTask implements Runnable {
             return;
         }
 
-        logger.info("<<<<将本地的mp4文件上传到obs>>>>");
+        logger.info("<<<<upload local mp4 to obs>>>>");
         /*二.将本地的mp4文件上传到obs*/
         File file = new File(localBase + tempFileName + ".mp4");
         if (file.exists()) {
             OBSUtil.upload(file);
             file.delete();/*本地文件删除*/
         }
-        logger.info("<<<<创建ocr作业>>>>");
+        logger.info("<<<<create ocr task>>>>");
         /*三.创建ocr作业*/
         String token, taskId;
         try {
             token = getToken(ApplicationConstants.HuaweiBulaBula.username, ApplicationConstants.HuaweiBulaBula.password, projectName);
+//            logger.info("token is {}",token);
             taskId = requestVideoOcr(token, projectId, UUID.randomUUID() + "-video-ocr-task", bucketName, tempFileName + ".mp4");
         } catch (Exception e) {
             logger.error(e.getMessage(), e);
             return;
         }
-        logger.info("<<<<监听ocr作业是否完成...>>>>");
+        logger.info("<<<<monitor ocr task...>>>>");
         /*四.监听ocr作业是否完成*/
         boolean finished = false;
         while (!finished) {
@@ -85,7 +87,7 @@ public class ScreenAnalyseTask implements Runnable {
                     finished = true;
                 }
             } catch (Exception e) {
-                logger.info("读取ocr任务进度时发生一次超时.");
+                logger.info("read ocr task status timeout.");
             }
             try {
                 Thread.sleep(1000);
@@ -93,7 +95,7 @@ public class ScreenAnalyseTask implements Runnable {
                 e.printStackTrace();
             }
         }
-        logger.info("<<<<视频ocr作业完成,下载ocr作业结果,删除作业记录及obs文件>>>>");
+        logger.info("<<<<video ocr task finished,download ocr result,delete task and obs file>>>>");
         /*五.下载ocr作业结果,删除作业记录及obs文件*/
         try {
             String fileName = tempFileName + ".mp4.json";
@@ -104,13 +106,13 @@ public class ScreenAnalyseTask implements Runnable {
             logger.error(e.getMessage(), e);
         }
 
-        logger.info("<<<<分析ocr结果,将结果存进es搜索引擎>>>>");
+        logger.info("<<<<analyse ocr result ,put it into es engine>>>>");
         /*六.分析ocr结果,将结果存进es搜索引擎*/
         try {
             postToEsServer(tempFileName);
         } catch (Exception e) {
             logger.error(e.getMessage(), e);
-            logger.error("向ES添加OCR分析结果出错!");
+            logger.error("put ocr result into es engine error!");
         }
 
 

@@ -87,13 +87,13 @@
             <artifactId>jaxen</artifactId>
             <version>1.1.6</version>
         </dependency>
-        <!--<dependency>
+        <dependency>
             <groupId>com.huawei.ais</groupId>
             <artifactId>ais-java-client</artifactId>
             <version>1.0.0</version>
             <scope>system</scope>
             <systemPath>${project.basedir}/lib/ais-java-client-1.0.0.jar</systemPath>
-        </dependency>-->
+        </dependency>
     </dependencies>
 
     <properties>
