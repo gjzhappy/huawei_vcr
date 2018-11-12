@@ -22,7 +22,7 @@ public class ScreenController {
 
     @RequestMapping(value = "/analyse", method = RequestMethod.POST)
     @ResponseBody
-    public ResponseEntity analyse(ScreenVideo screenVideo) {
+    public ResponseEntity analyse(@RequestBody ScreenVideo screenVideo) {
 //        screenVideo.setVideo_file_ftp("/11f137137ea06bc3434fc53bdd3f2111.mp4");
 //        screenVideo.setVideo_file_xml("/ASCHN000000000005000020180423042502026.trace");
         ScreenAnalyseTask task = new ScreenAnalyseTask(screenVideo);
